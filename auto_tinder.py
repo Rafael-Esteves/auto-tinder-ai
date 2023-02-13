@@ -5,7 +5,7 @@ from time import sleep
 from random import random
 from likeliness_classifier import Classifier
 import person_detector
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from time import time
 
 TINDER_URL = "https://api.gotinder.com"
@@ -132,7 +132,7 @@ class Profile(Person):
 
 
 if __name__ == "__main__":
-    token = "YOUR-API-TOKEN"
+    token = "YOUR_API_TOKEN"
     api = tinderAPI(token)
 
     detection_graph = person_detector.open_graph()
@@ -143,7 +143,8 @@ if __name__ == "__main__":
                                     labels="./tf/training_output/retrained_labels.txt")
 
             end_time = 1568992917 + 60*60*2.8
-            while time() < end_time:
+            #while time() < end_time:
+            while True: 
                 try:
                     print(f"------ TIME LEFT: {(end_time - time())/60} min -----")
                     persons = api.nearby_persons()
@@ -176,9 +177,6 @@ if __name__ == "__main__":
                             print("DISLIKE")
                             print("Response: ", res)
                 except Exception:
-                    pass
-
-
-
+                    print('there was an error')
 
     classifier.close()
