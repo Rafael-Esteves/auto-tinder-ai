@@ -2,12 +2,18 @@ from os import listdir, rename
 from os.path import isfile, join
 import tkinter as tk
 from PIL import ImageTk, Image
+from auto_tinder import tinderAPI
+
+token = "53fd47eb-7ddd-4d97-8c5a-860585a15c96"
+api = tinderAPI(token)
 
 IMAGE_FOLDER = "./images/unclassified"
 
 images = [f for f in listdir(IMAGE_FOLDER) if isfile(join(IMAGE_FOLDER, f))]
-unclassified_images = filter(lambda image: not (image.startswith("0_") or image.startswith("1_")), images)
+unclassified_images = filter(lambda image: not (
+    image.startswith("0_") or image.startswith("1_")), images)
 current = None
+
 
 def next_img():
     global current, unclassified_images
@@ -21,16 +27,20 @@ def next_img():
     max_height = 1000
     if height > max_height:
         resize_factor = max_height / height
-        pil_img = pil_img.resize((int(width*resize_factor), int(height*resize_factor)), resample=Image.LANCZOS)
+        pil_img = pil_img.resize(
+            (int(width*resize_factor), int(height*resize_factor)), resample=Image.LANCZOS)
     img_tk = ImageTk.PhotoImage(pil_img)
     img_label.img = img_tk
     img_label.config(image=img_label.img)
 
+
 def positive(arg):
     global current
+    print(api.like(current.split('_')[0]))
     print("Positive")
     rename(IMAGE_FOLDER+"/"+current, IMAGE_FOLDER+"/1_"+current)
     next_img()
+
 
 def negative(arg):
     global current
@@ -50,8 +60,6 @@ if __name__ == "__main__":
 
     btn = tk.Button(root, text='Next image', command=next_img)
 
-    next_img() # load first image
+    next_img()  # load first image
 
     root.mainloop()
-
-

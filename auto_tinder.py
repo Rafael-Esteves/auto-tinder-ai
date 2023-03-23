@@ -12,32 +12,38 @@ TINDER_URL = "https://api.gotinder.com"
 geolocator = Nominatim(user_agent="auto-tinder")
 PROF_FILE = "./images/unclassified/profiles.txt"
 
+
 class tinderAPI():
 
     def __init__(self, token):
         self._token = token
 
     def profile(self):
-        data = requests.get(TINDER_URL + "/v2/profile?include=account%2Cuser", headers={"X-Auth-Token": self._token}).json()
+        data = requests.get(TINDER_URL + "/v2/profile?include=account%2Cuser",
+                            headers={"X-Auth-Token": self._token}).json()
         return Profile(data["data"], self)
 
     def matches(self, limit=10):
-        data = requests.get(TINDER_URL + f"/v2/matches?count={limit}", headers={"X-Auth-Token": self._token}).json()
+        data = requests.get(
+            TINDER_URL + f"/v2/matches?count={limit}", headers={"X-Auth-Token": self._token}).json()
         return list(map(lambda match: Person(match["person"], self), data["data"]["matches"]))
 
     def like(self, user_id):
-        data = requests.get(TINDER_URL + f"/like/{user_id}", headers={"X-Auth-Token": self._token}).json()
+        data = requests.get(
+            TINDER_URL + f"/like/{user_id}", headers={"X-Auth-Token": self._token}).json()
         return {
             "is_match": data["match"],
             "liked_remaining": data["likes_remaining"]
         }
 
     def dislike(self, user_id):
-        requests.get(TINDER_URL + f"/pass/{user_id}", headers={"X-Auth-Token": self._token}).json()
+        requests.get(
+            TINDER_URL + f"/pass/{user_id}", headers={"X-Auth-Token": self._token}).json()
         return True
 
     def nearby_persons(self):
-        data = requests.get(TINDER_URL + "/v2/recs/core", headers={"X-Auth-Token": self._token}).json()
+        data = requests.get(TINDER_URL + "/v2/recs/core",
+                            headers={"X-Auth-Token": self._token}).json()
         return list(map(lambda user: Person(user["user"], self), data["data"]["results"]))
 
 
@@ -56,19 +62,20 @@ class Person(object):
             "birth_date", False) else None
         self.gender = ["Male", "Female", "Unknown"][data.get("gender", 2)]
 
-        self.images = list(map(lambda photo: photo["url"], data.get("photos", [])))
+        self.images = list(
+            map(lambda photo: photo["url"], data.get("photos", [])))
 
         self.jobs = list(
             map(lambda job: {"title": job.get("title", {}).get("name"), "company": job.get("company", {}).get("name")}, data.get("jobs", [])))
-        self.schools = list(map(lambda school: school["name"], data.get("schools", [])))
+        self.schools = list(
+            map(lambda school: school["name"], data.get("schools", [])))
 
         if data.get("pos", False):
-            self.location = geolocator.reverse(f'{data["pos"]["lat"]}, {data["pos"]["lon"]}')
-
+            self.location = geolocator.reverse(
+                f'{data["pos"]["lat"]}, {data["pos"]["lon"]}')
 
     def __repr__(self):
         return f"{self.id}  -  {self.name} ({self.birth_date.strftime('%d.%m.%Y')})"
-
 
     def like(self):
         return self._api.like(self.id)
@@ -114,7 +121,6 @@ class Person(object):
         return ratings[0]*0.6 + sum(ratings[1:])/len(ratings[1:])*0.4
 
 
-
 class Profile(Person):
 
     def __init__(self, data, api):
@@ -132,7 +138,7 @@ class Profile(Person):
 
 
 if __name__ == "__main__":
-    token = "YOUR_API_TOKEN"
+    token = "53fd47eb-7ddd-4d97-8c5a-860585a15c96"
     api = tinderAPI(token)
 
     detection_graph = person_detector.open_graph()
@@ -143,10 +149,11 @@ if __name__ == "__main__":
                                     labels="./tf/training_output/retrained_labels.txt")
 
             end_time = 1568992917 + 60*60*2.8
-            #while time() < end_time:
-            while True: 
+            # while time() < end_time:
+            while True:
                 try:
-                    print(f"------ TIME LEFT: {(end_time - time())/60} min -----")
+                    print(
+                        f"------ TIME LEFT: {(end_time - time())/60} min -----")
                     persons = api.nearby_persons()
                     pos_schools = ["Universität Zürich", "University of Zurich", "UZH", "HWZ Hochschule für Wirtschaft Zürich",
                                    "ETH Zürich", "ETH Zurich", "ETH", "ETHZ", "Hochschule Luzern", "HSLU", "ZHAW",
