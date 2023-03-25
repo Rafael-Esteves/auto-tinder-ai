@@ -11,11 +11,15 @@ IMAGE_FOLDER = "./images/unclassified"
 
 images = [f for f in listdir(IMAGE_FOLDER) if isfile(join(IMAGE_FOLDER, f))]
 unclassified_images = filter(lambda image: not (
-    image.startswith("0_") or image.startswith("1_")), images)
+    image.startswith("0_") or image.startswith("1_") or image.endswith('txt') or image.startswith("2_")), images)
 current = None
 
 
 def next_img():
+    print("Total classified: ", " ".join(listdir(IMAGE_FOLDER)).count(" 0_") +
+          " ".join(listdir(IMAGE_FOLDER)).count(" 1_"))
+    print("Total skipped: ", " ".join(listdir(IMAGE_FOLDER)).count(" 2_"))
+    print("Total images: ", len(listdir(IMAGE_FOLDER)))
     global current, unclassified_images
     try:
         current = next(unclassified_images)
@@ -36,7 +40,6 @@ def next_img():
 
 def positive(arg):
     global current
-    print(api.like(current.split('_')[0]))
     print("Positive")
     rename(IMAGE_FOLDER+"/"+current, IMAGE_FOLDER+"/1_"+current)
     next_img()
@@ -49,6 +52,13 @@ def negative(arg):
     next_img()
 
 
+def skip(arg):
+    global current
+    print("Skipped")
+    rename(IMAGE_FOLDER + "/" + current, IMAGE_FOLDER + "/2_" + current)
+    next_img()
+
+
 if __name__ == "__main__":
 
     root = tk.Tk()
@@ -57,6 +67,7 @@ if __name__ == "__main__":
     img_label.pack()
     img_label.bind("<Button-1>", positive)
     img_label.bind("<Button-3>", negative)
+    root.bind("<space>", skip)
 
     btn = tk.Button(root, text='Next image', command=next_img)
 

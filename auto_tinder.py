@@ -7,10 +7,12 @@ from likeliness_classifier import Classifier
 import person_detector
 import tensorflow.compat.v1 as tf
 from time import time
+import os
 
 TINDER_URL = "https://api.gotinder.com"
 geolocator = Nominatim(user_agent="auto-tinder")
 PROF_FILE = "./images/unclassified/profiles.txt"
+SKIPPED_FILE = "./auto_skipped.txt"
 
 
 class tinderAPI():
@@ -30,10 +32,11 @@ class tinderAPI():
 
     def like(self, user_id):
         data = requests.get(
-            TINDER_URL + f"/like/{user_id}", headers={"X-Auth-Token": self._token}).json()
+            TINDER_URL + f"/like/{user_id}?locale=pt", headers={"X-Auth-Token": self._token}).json()
         return {
             "is_match": data["match"],
-            "liked_remaining": data["likes_remaining"]
+            "liked_remaining": data["likes_remaining"],
+            "status": data["status"]
         }
 
     def dislike(self, user_id):
@@ -60,6 +63,9 @@ class Person(object):
 
         self.birth_date = datetime.datetime.strptime(data["birth_date"], '%Y-%m-%dT%H:%M:%S.%fZ') if data.get(
             "birth_date", False) else None
+
+        self.age = datetime.date.today().year - datetime.datetime.strptime(data["birth_date"], '%Y-%m-%dT%H:%M:%S.%fZ').year if data.get(
+            "birth_date", False) else None
         self.gender = ["Male", "Female", "Unknown"][data.get("gender", 2)]
 
         self.images = list(
@@ -69,6 +75,9 @@ class Person(object):
             map(lambda job: {"title": job.get("title", {}).get("name"), "company": job.get("company", {}).get("name")}, data.get("jobs", [])))
         self.schools = list(
             map(lambda school: school["name"], data.get("schools", [])))
+
+        # self.interests = list(
+        #     map(lambda interest: interest["name"], data.get("interests", [])["selected_interests", []]))
 
         if data.get("pos", False):
             self.location = geolocator.reverse(
@@ -84,10 +93,10 @@ class Person(object):
         return self._api.dislike(self.id)
 
     def download_images(self, folder=".", sleep_max_for=0):
-        with open(PROF_FILE, "r") as f:
-            lines = f.readlines()
-            if self.id in lines:
-                return
+        directory = os.listdir(folder)
+        if self.id in ' '.join(directory):
+            print('Already captured, skipping...')
+            return
         with open(PROF_FILE, "a") as f:
             f.write(self.id+"\r\n")
         index = -1
@@ -97,10 +106,24 @@ class Person(object):
             if req.status_code == 200:
                 with open(f"{folder}/{self.id}_{self.name}_{index}.jpeg", "wb") as f:
                     f.write(req.content)
-            sleep(random()*sleep_max_for)
+                    sleep(1)
+
+        print('------------------------------')
+        print('Id: ', self.id)
+        print('Name: ', self.name)
+        print('Photo count: ', len(self.images))
+        print('Total photos downloaded: ', len(directory))
+        print('------------------------------')
+
+        sleep(2)
 
     def predict_likeliness(self, classifier, sess):
+        with open(SKIPPED_FILE, "r") as f:
+            lines = f.readlines()
+            if self.id+"\n" in lines:
+                return
         ratings = []
+
         for image in self.images:
             req = requests.get(image, stream=True)
             tmp_filename = f"./images/tmp/run.jpg"
@@ -153,36 +176,47 @@ if __name__ == "__main__":
             while True:
                 try:
                     print(
-                        f"------ TIME LEFT: {(end_time - time())/60} min -----")
+                        f"------ TIME LEFT: {(end_time - time())/60}    min -----")
                     persons = api.nearby_persons()
-                    pos_schools = ["Universität Zürich", "University of Zurich", "UZH", "HWZ Hochschule für Wirtschaft Zürich",
-                                   "ETH Zürich", "ETH Zurich", "ETH", "ETHZ", "Hochschule Luzern", "HSLU", "ZHAW",
-                                   "Zürcher Hochschule für Angewandte Wissenschaften", "Universität Bern", "Uni Bern",
-                                   "PHLU", "PH Luzern", "Fachhochschule Luzern", "Eidgenössische Technische Hochschule Zürich"]
 
                     for person in persons:
-                        score = person.predict_likeliness(classifier, sess)
 
-                        for school in pos_schools:
-                            if school in person.schools:
-                                print()
-                                score *= 1.2
+                        score = person.predict_likeliness(classifier,   sess)
 
+                        if person.age:
+                            if person.age < 25:
+                                score = score * 1.1
+                            elif person.age > 30:
+                                score = score * 0.9
+
+                        # if person has less than 3 photos skip it
+                        # if person distance < 5km add a positive mltplier
+                        if person.distance < 5:
+                            score = score * 0.1
+                        if person.gender == 'Male':
+                            score = 0
+
+                        print("Images: ", person.images)
                         print("-------------------------")
                         print("ID: ", person.id)
                         print("Name: ", person.name)
-                        print("Schools: ", person.schools)
-                        print("Images: ", person.images)
-                        print(score)
+                        print("Gender: ", person.gender)
+                        print("Age: ", person.age)
+                        print("Score: ", score)
 
                         if score > 0.8:
                             res = person.like()
                             print("LIKE")
                             print("Response: ", res)
-                        else:
+                        elif score == 0:
                             res = person.dislike()
                             print("DISLIKE")
                             print("Response: ", res)
+                        else:
+                            # when skipping, write id to auto_skipped.txt and check that file at the beggining of the loop to make sure we're not wasting precious processing power on the same jarro twice
+                            with open(SKIPPED_FILE, "a") as f:
+                                f.write(self.id+"\r\n")
+                            print('Skipping...')
                 except Exception:
                     print('there was an error')
 

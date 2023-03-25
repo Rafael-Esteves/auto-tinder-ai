@@ -11,7 +11,3 @@ if __name__ == "__main__":
         for person in persons:
             person.download_images(
                 folder="./images/unclassified", sleep_max_for=random()*3)
-            print(person.name)
-            print(person.bio)
-            # sleep(random()*10)
-        sleep(random()*10)

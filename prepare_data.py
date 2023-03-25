@@ -12,51 +12,59 @@ NEG_FOLDER = "./images/classified/negative"
 LOVOO_FOLDER = "./images/lovoo"
 
 
-
 if __name__ == "__main__":
     detection_graph = person_detector.open_graph()
 
-    images = [f for f in os.listdir(IMAGE_FOLDER) if os.path.isfile(os.path.join(IMAGE_FOLDER, f))]
+    images = [f for f in os.listdir(IMAGE_FOLDER) if os.path.isfile(
+        os.path.join(IMAGE_FOLDER, f))]
     positive_images = filter(lambda image: (image.startswith("1_")), images)
     negative_images = filter(lambda image: (image.startswith("0_")), images)
-    lovoo_images = [f for f in os.listdir(LOVOO_FOLDER) if os.path.isfile(os.path.join(LOVOO_FOLDER, f))]
+    # lovoo_images = [f for f in os.listdir(LOVOO_FOLDER) if os.path.isfile(os.path.join(LOVOO_FOLDER, f))]
 
     with detection_graph.as_default():
         with tf.compat.v1.Session() as sess:
 
-            for pos in lovoo_images:
-                old_filename = LOVOO_FOLDER + "/" + pos
-                new_filename = POS_FOLDER + "/" + pos[:-5] + ".jpg"
+            # for pos in lovoo_images:
+            #     old_filename = LOVOO_FOLDER + "/" + pos
+            #     new_filename = POS_FOLDER + "/" + pos[:-5] + ".jpg"
 
-                if not os.path.isfile(new_filename):
-                    print(">> Moving positive image: " + pos)
-                    img = person_detector.get_person(old_filename, sess)
-                    if not img:
-                        continue
-                    img = img.convert('L')
-                    img.save(new_filename, "jpeg")
-
+            #     if not os.path.isfile(new_filename):
+            #         print(">> Moving positive image: " + pos)
+            #         img = person_detector.get_person(old_filename, sess)
+            #         if not img:
+            #             continue
+            #         img = img.convert('L')
+            #         img.save(new_filename, "jpeg")
 
             for pos in positive_images:
-                old_filename = IMAGE_FOLDER + "/" + pos
-                new_filename = POS_FOLDER + "/" + pos[:-5] + ".jpg"
+                try:
+                    old_filename = IMAGE_FOLDER + "/" + pos
+                    new_filename = POS_FOLDER + "/" + pos[:-5] + ".jpg"
 
-                if not os.path.isfile(new_filename):
-                    print(">> Moving positive image: " + pos)
-                    img = person_detector.get_person(old_filename, sess)
-                    if not img:
-                        continue
-                    img = img.convert('L')
-                    img.save(new_filename, "jpeg")
-
+                    if not os.path.isfile(new_filename):
+                        print(">> Moving positive image: " + pos)
+                        img = person_detector.get_person(old_filename, sess)
+                        if not img:
+                            continue
+                        img = img.convert('L')
+                        img.save(new_filename, "jpeg")
+                except:
+                    continue
 
             for neg in negative_images:
-                old_filename = IMAGE_FOLDER + "/" + neg
-                new_filename = NEG_FOLDER + "/" + neg[:-5] + ".jpg"
-                if not os.path.isfile(new_filename):
-                    print(">> Moving negative image: " + neg)
-                    img = person_detector.get_person(old_filename, sess)
-                    if not img:
-                        continue
-                    img = img.convert('L')
-                    img.save(new_filename, "jpeg")
+                try:
+                    old_filename = IMAGE_FOLDER + "/" + neg
+                    new_filename = NEG_FOLDER + "/" + neg[:-5] + ".jpg"
+                    if not os.path.isfile(new_filename):
+                        print(">> Moving negative image: " + neg)
+                        try:
+                            img = person_detector.get_person(
+                                old_filename, sess)
+                        except:
+                            print("Error occurred, deleting image and moving on")
+                        if not img:
+                            continue
+                        img = img.convert('L')
+                        img.save(new_filename, "jpeg")
+                except:
+                    continue
