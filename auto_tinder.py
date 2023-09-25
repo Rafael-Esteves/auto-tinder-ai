@@ -8,6 +8,8 @@ import person_detector
 import tensorflow.compat.v1 as tf
 from time import time
 import os
+import asyncio
+
 
 TINDER_URL = "https://api.gotinder.com"
 geolocator = Nominatim(user_agent="auto-tinder")
@@ -64,8 +66,6 @@ class Person(object):
         self.birth_date = datetime.datetime.strptime(data["birth_date"], '%Y-%m-%dT%H:%M:%S.%fZ') if data.get(
             "birth_date", False) else None
 
-        self.age = datetime.date.today().year - datetime.datetime.strptime(data["birth_date"], '%Y-%m-%dT%H:%M:%S.%fZ').year if data.get(
-            "birth_date", False) else None
         self.gender = ["Male", "Female", "Unknown"][data.get("gender", 2)]
 
         self.images = list(
@@ -84,7 +84,7 @@ class Person(object):
                 f'{data["pos"]["lat"]}, {data["pos"]["lon"]}')
 
     def __repr__(self):
-        return f"{self.id}  -  {self.name} ({self.birth_date.strftime('%d.%m.%Y')})"
+        return f"{self.id}  -  {self.name} "
 
     def like(self):
         return self._api.like(self.id)
@@ -92,7 +92,7 @@ class Person(object):
     def dislike(self):
         return self._api.dislike(self.id)
 
-    def download_images(self, folder=".", sleep_max_for=0):
+    def download_images(self, folder="."):
         directory = os.listdir(folder)
         if self.id in ' '.join(directory):
             print('Already captured, skipping...')
@@ -106,7 +106,6 @@ class Person(object):
             if req.status_code == 200:
                 with open(f"{folder}/{self.id}_{self.name}_{index}.jpeg", "wb") as f:
                     f.write(req.content)
-                    sleep(1)
 
         print('------------------------------')
         print('Id: ', self.id)
@@ -115,13 +114,7 @@ class Person(object):
         print('Total photos downloaded: ', len(directory))
         print('------------------------------')
 
-        sleep(2)
-
     def predict_likeliness(self, classifier, sess):
-        with open(SKIPPED_FILE, "r") as f:
-            lines = f.readlines()
-            if self.id+"\n" in lines:
-                return
         ratings = []
 
         for image in self.images:
@@ -161,7 +154,7 @@ class Profile(Person):
 
 
 if __name__ == "__main__":
-    token = "53fd47eb-7ddd-4d97-8c5a-860585a15c96"
+    token = "d09cfe49-14fb-4c93-987c-0ec3f1ce9a8c"
     api = tinderAPI(token)
 
     detection_graph = person_detector.open_graph()
@@ -171,52 +164,44 @@ if __name__ == "__main__":
             classifier = Classifier(graph="./tf/training_output/retrained_graph.pb",
                                     labels="./tf/training_output/retrained_labels.txt")
 
-            end_time = 1568992917 + 60*60*2.8
-            # while time() < end_time:
-            while True:
+            end_time = time() + 60*60*2.8
+            while time() < end_time:
+                # while True:
                 try:
                     print(
                         f"------ TIME LEFT: {(end_time - time())/60}    min -----")
                     persons = api.nearby_persons()
 
                     for person in persons:
+                        # with open(SKIPPED_FILE, "r") as f:
+                        #     lines = f.readlines()
+                        #     if person.id + "\n" in lines:
+                        #         continue
 
                         score = person.predict_likeliness(classifier,   sess)
 
-                        if person.age:
-                            if person.age < 25:
-                                score = score * 1.1
-                            elif person.age > 30:
-                                score = score * 0.9
-
-                        # if person has less than 3 photos skip it
-                        # if person distance < 5km add a positive mltplier
-                        if person.distance < 5:
-                            score = score * 0.1
-                        if person.gender == 'Male':
-                            score = 0
-
-                        print("Images: ", person.images)
                         print("-------------------------")
+                        print("Images: ", person.images)
                         print("ID: ", person.id)
                         print("Name: ", person.name)
-                        print("Gender: ", person.gender)
-                        print("Age: ", person.age)
                         print("Score: ", score)
+                        print("-------------------------")
 
-                        if score > 0.8:
+                        if score > 0.5:
                             res = person.like()
                             print("LIKE")
                             print("Response: ", res)
-                        elif score == 0:
+                        else:
                             res = person.dislike()
                             print("DISLIKE")
                             print("Response: ", res)
-                        else:
-                            # when skipping, write id to auto_skipped.txt and check that file at the beggining of the loop to make sure we're not wasting precious processing power on the same jarro twice
-                            with open(SKIPPED_FILE, "a") as f:
-                                f.write(self.id+"\r\n")
-                            print('Skipping...')
+                        # else:
+                        #     # when skipping, write id to auto_skipped.txt and check that file at the beggining of the loop to make sure we're not wasting precious processing power on the same jarro twice
+                        #     with open(SKIPPED_FILE, "a") as f:
+                        #         f.write(person.id+"\r\n")
+                        #     print('Skipping...')
+                        #     sleep(5)
+
                 except Exception:
                     print('there was an error')
 
